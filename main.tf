@@ -24,6 +24,10 @@ provider "azurerm" {
   subscription_id = var.subscription_id
 }
 
+locals {
+  web_server_name = var.environment == "production" ? "${var.web_server_name}-prod" : "${var.web_server_name}-dev"
+}
+
 resource "azurerm_resource_group" "web_server_rg" {
   name     = var.web_server_rg
   location = var.web_server_location
@@ -82,7 +86,7 @@ resource "azurerm_network_security_rule" "web_server_nsg_rule_rdp" {
 }
 
 resource "azurerm_virtual_machine_scale_set" "web_server" {
-  name                  = "${var.resource_prefix}-scale-set"
+  name                  = "${local.web_server_name}-scale-set"
   location              = var.web_server_location
   resource_group_name   = azurerm_resource_group.web_server_rg.name
   upgrade_policy_mode   = "manual"
@@ -108,7 +112,7 @@ resource "azurerm_virtual_machine_scale_set" "web_server" {
   }
 
   os_profile {
-    computer_name_prefix  = var.web_server_name
+    computer_name_prefix  = local.web_server_name
     admin_username        = "webserver"
     admin_password        = "Passw0rd1234"
   }
@@ -120,7 +124,7 @@ resource "azurerm_virtual_machine_scale_set" "web_server" {
     primary = true
 
     ip_configuration {
-      name = var.web_server_name
+      name = local.web_server_name
       primary = true
       subnet_id = azurerm_subnet.web_server_subnet[0].id
     }
