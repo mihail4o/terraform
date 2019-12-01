@@ -52,26 +52,11 @@ resource "azurerm_subnet_network_security_group_association" "web_server_subnet_
   count                     = length(var.web_server_subnets)
 }
 
-resource "azurerm_network_interface" "web_server_nic" {
-  name                = "${var.web_server_name}-${format("%02d", count.index)}-nic"
-  location            = var.web_server_location
-  resource_group_name = azurerm_resource_group.web_server_rg.name
-  count               = var.web_server_count
-
-  ip_configuration {
-    name                              = "${var.web_server_name}-${format("%02d", count.index)}-ip"
-    subnet_id                         = azurerm_subnet.web_server_subnet[count.index].id
-    private_ip_address_allocation = "Dynamic"
-    public_ip_address_id = azurerm_public_ip.web_server_public_ip[count.index].id
-  }
-}
-
 resource "azurerm_public_ip" "web_server_public_ip" {
-  name                = "${var.resource_prefix}-${format("%02d", count.index)}-public-ip"
+  name                = "${var.resource_prefix}-public-ip"
   location            = var.web_server_location
   resource_group_name = azurerm_resource_group.web_server_rg.name
   allocation_method   = var.environment == "production" ? "Static" : "Dynamic"
-  count               = var.web_server_count
 }
 
 resource "azurerm_network_security_group" "web_server_nsg" {
@@ -96,42 +81,48 @@ resource "azurerm_network_security_rule" "web_server_nsg_rule_rdp" {
   count                       = var.environment == "production" ? 0 : 1
 }
 
-resource "azurerm_virtual_machine" "web_server" {
-  name                  = "${var.resource_prefix}-${format("%02d", count.index)}"
+resource "azurerm_virtual_machine_scale_set" "web_server" {
+  name                  = "${var.resource_prefix}-scale-set"
   location              = var.web_server_location
   resource_group_name   = azurerm_resource_group.web_server_rg.name
-  network_interface_ids = [azurerm_network_interface.web_server_nic[count.index].id]
-  vm_size               = "Standard_B1s"
-  availability_set_id   = azurerm_availability_set.web_server_availability_set.id
-  count                 = var.web_server_count
+  upgrade_policy_mode   = "manual"
 
-  storage_image_reference {
+  sku {
+    capacity = var.web_server_count
+    tier = "Standard"
+    name = "Standard_B1s"
+  }
+
+  storage_profile_image_reference {
     publisher = "MicrosoftWindowsServer"
     offer     = "WindowsServer"
     sku       = "2016-Datacenter-Server-Core-smalldisk"
     version   = "latest"
   }
 
-  storage_os_disk {
-    name          = "${var.resource_prefix}-${format("%02d", count.index)}-os"
-    caching       = "ReadWrite"
-    create_option = "FromImage"
+  storage_profile_os_disk {
+    name              = ""
+    caching           = "ReadWrite"
+    create_option     = "FromImage"
     managed_disk_type = "Standard_LRS"
   }
 
   os_profile {
-    computer_name  = "${var.resource_prefix}-${format("%02d", count.index)}"
-    admin_username = "webserver"
-    admin_password = "Passw0rd1234"
+    computer_name_prefix  = var.web_server_name
+    admin_username        = "webserver"
+    admin_password        = "Passw0rd1234"
   }
 
   os_profile_windows_config {}
-}
 
-resource "azurerm_availability_set" "web_server_availability_set" {
-  name                  = "${var.resource_prefix}-availability-set"
-  location              = var.web_server_location
-  resource_group_name   = azurerm_resource_group.web_server_rg.name
-  managed               = true
-  platform_fault_domain_count = 2
+  network_profile {
+    name = "web_server_network_profile"
+    primary = true
+
+    ip_configuration {
+      name = var.web_server_name
+      primary = true
+      subnet_id = azurerm_subnet.web_server_subnet[0].id
+    }
+  }
 }
