@@ -118,7 +118,9 @@ resource "azurerm_virtual_machine_scale_set" "web_server" {
     admin_password        = "Passw0rd1234"
   }
 
-  os_profile_windows_config {}
+  os_profile_windows_config {
+    provision_vm_agent = true
+  }
 
   network_profile {
     name = "web_server_network_profile"
@@ -130,6 +132,21 @@ resource "azurerm_virtual_machine_scale_set" "web_server" {
       subnet_id = azurerm_subnet.web_server_subnet[0].id
       load_balancer_backend_address_pool_ids = [azurerm_lb_backend_address_pool.web_server_lb_backend_pool.id]
     }
+  }
+
+  extension {
+    name                 = "${local.web_server_name}-extension"
+    publisher            = "Microsoft.Compute"
+    type                 = "CustomScriptExtension"
+    type_handler_version = "1.9"
+
+    settings = <<SETTINGS
+    {
+      "fileUris": ["https://raw.githubusercontent.com/eltimmo/learning/master/azureInstallWebServer.ps1"],
+      "commandToExecute": "start powershell -ExecutionPolicy Unrestricted -File azureInstallWebServer.ps1"
+    }
+    SETTINGS
+
   }
 }
 
@@ -169,3 +186,9 @@ resource "azurerm_lb_rule" "web_server_lb_http_rule" {
   probe_id = azurerm_lb_probe.web_server_lb_http_probe.id
   backend_address_pool_id = azurerm_lb_backend_address_pool.web_server_lb_backend_pool.id
 }
+
+# List all available extension
+# az vm extension image list -l westus2 -o table
+# az vm extension image list-names -l westus2 -p Microsoft.Compute -o table
+# az vm extension image list-version -l westus2 -p Microsoft.Compute -n CustomScriptExtension -o table
+#
