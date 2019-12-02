@@ -9,3 +9,4 @@ environment               = "production"
 web_server_count          = 2
 web_server_subnets        = ["1.0.1.0/24", "1.0.2.0/24"]
 terraform_script_version  = "1.0.0"
+domain_name_label         = "balivo-learn-tf-web"
