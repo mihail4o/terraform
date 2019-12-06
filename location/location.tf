@@ -73,6 +73,7 @@ resource "azurerm_network_security_rule" "web_server_nsg_rule_http" {
   source_address_prefix       = "*"
   destination_address_prefix  = "*"
 }
+
 /*
 resource "azurerm_network_security_rule" "web_server_nsg_rule_rdp" {
   name                        = "RDP Inbound"
